@@ -1,14 +1,29 @@
-﻿using System;
+﻿// required for tray icon
+using System;
 using System.Drawing;
 using System.Windows.Forms;
+
+// required for MQTT subscribe and JSON parse
+using MQTTnet;
+using MQTTnet.Client.Options;
+using MQTTnet.Extensions.ManagedClient;
+using System.Threading.Tasks;
+using System.Text;
+using System.Diagnostics;
+using Newtonsoft.Json.Linq;
 
 namespace MQTTtray
 {
     static class Program
     {
+        // TODO set via UI in Settings.cs
+        private static string server = "rpi3";
+        private static string topic = "sensors/mh-z19b";
+        private static string field = "co2";
+
         private static NotifyIcon ni;
 
-        public static void Main(string[] astrArg)
+        public static async Task Main(string[] astrArg)
         {
             var cm = new ContextMenu();
 
@@ -23,13 +38,14 @@ namespace MQTTtray
             cm.MenuItems.Add("&Exit", Exit);
 
             ni = new NotifyIcon();
-            ni.Icon = new Icon(SystemIcons.Application, 40, 40);
-            setIconText(1300);
+            ni.Icon = new Icon(SystemIcons.Question, 40, 40);
+            //setIconText(1234);
             ni.Text = "MQTTtray settings";
             ni.Visible = true;
             ni.ContextMenu = cm;
             ni.DoubleClick += new EventHandler(Settings);
 
+            await ConnectAsync();
             Application.Run();
         }
 
@@ -58,6 +74,36 @@ namespace MQTTtray
         private static void Settings(Object sender, EventArgs e)
         {
             new Settings().Show();
+        }
+
+        private static async Task ConnectAsync()
+        {
+            // Setup and starts a managed MQTT client.
+            var options = new ManagedMqttClientOptionsBuilder()
+                .WithAutoReconnectDelay(TimeSpan.FromSeconds(5))
+                .WithClientOptions(new MqttClientOptionsBuilder()
+                    .WithClientId("Windows-MQTTtray")
+                    .WithTcpServer(server)
+                    //.WithTls()
+                    .Build())
+                .Build();
+
+            var mqttClient = new MqttFactory().CreateManagedMqttClient();
+            await mqttClient.SubscribeAsync(new TopicFilterBuilder().WithTopic(topic).Build());
+            _ = mqttClient.UseApplicationMessageReceivedHandler(e =>
+              {
+                  //Debug.WriteLine("### RECEIVED APPLICATION MESSAGE ###");
+                  //Debug.WriteLine($"+ Topic = {e.ApplicationMessage.Topic}");
+                  //Debug.WriteLine($"+ Payload = {Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}");
+                  //Debug.WriteLine($"+ QoS = {e.ApplicationMessage.QualityOfServiceLevel}");
+                  //Debug.WriteLine($"+ Retain = {e.ApplicationMessage.Retain}");
+                  var payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+                  var json = JObject.Parse(payload);
+                  var value = json.Value<int>(field);
+                  Debug.WriteLine($"{field}: {value}");
+                  setIconText(value);
+              });
+            await mqttClient.StartAsync(options);
         }
     }
 }
