@@ -40,7 +40,7 @@ namespace MQTTtray
             ni = new NotifyIcon();
             ni.Icon = new Icon(SystemIcons.Question, 40, 40);
             //setIconText(1234);
-            ni.Text = "MQTTtray settings";
+            ni.Text = "MQTTtray";
             ni.Visible = true;
             ni.ContextMenu = cm;
             ni.DoubleClick += new EventHandler(Settings);
@@ -51,8 +51,9 @@ namespace MQTTtray
 
         private static void setIconText(int n)
         {
+            ni.Text = "MQTTtray: " + n.ToString();
             // https://stackoverflow.com/questions/36379547/writing-text-to-the-system-tray-instead-of-an-icon
-            Font fontToUse = new Font("Trebuchet MS", 20, FontStyle.Bold, GraphicsUnit.Pixel);
+            Font fontToUse = new Font("Segoe UI", 19, FontStyle.Bold, GraphicsUnit.Pixel);
             var color = n > 2000 ? Color.Red : n > 1200 ? Color.Orange : n > 800 ? Color.Yellow : Color.LightGreen;
             Brush brushToUse = new SolidBrush(color);
             Bitmap bitmapText = new Bitmap(40, 40);
